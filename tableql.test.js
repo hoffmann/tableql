@@ -15,11 +15,12 @@ const rows = [
   { id: 1, name: "Alice", age: 30, city: "Berlin", created: "2026-01-01", active: "true" },
   { id: 2, name: "Bob", age: 22, city: "Munich", created: "2024-01-25", active: "true" },
   { id: 3, name: "Cara", age: 40, city: "Berlin", created: "2025-06-01", active: "false" },
+  { id: 4, name: "Tim Lee jr.", age: 35, city: "Hamburg", created: "2025-03-15", active: "true" },
 ];
 
 test("age >= 30", () => {
   const out = filterIds(rows, "age >= 30", { datatypes });
-  assert.deepEqual(out, [1, 3]);
+  assert.deepEqual(out, [1, 3, 4]);
 });
 
 test("city == 'Berlin' AND age < 40", () => {
@@ -30,19 +31,21 @@ test("city == 'Berlin' AND age < 40", () => {
 
 const cases = [
   // Numeric comparisons
-  { expr: "age >= 30", expected: [1, 3], desc: "greater than or equal" },
-  { expr: "age > 30", expected: [3], desc: "greater than" },
+  { expr: "age >= 30", expected: [1, 3, 4], desc: "greater than or equal" },
+  { expr: "age > 30", expected: [3, 4], desc: "greater than" },
   { expr: "age <= 30", expected: [1, 2], desc: "less than or equal" },
   { expr: "age < 30", expected: [2], desc: "less than" },
   { expr: "age = 22", expected: [2], desc: "numeric equality" },
-  { expr: "age != 30", expected: [2, 3], desc: "numeric inequality" },
+  { expr: "age = 35", expected: [4], desc: "numeric equality for Tim" },
+  { expr: "age != 30", expected: [2, 3, 4], desc: "numeric inequality" },
 
   // String comparisons
   { expr: "city == 'Berlin'", expected: [1, 3], desc: "string exact match (==)" },
   { expr: "city = 'Berlin'", expected: [1, 3], desc: "string exact match (=)" },
   { expr: "city:Berlin", expected: [1, 3], desc: "string substring match" },
   { expr: "city:Ber", expected: [1, 3], desc: "substring partial match" },
-  { expr: "city != 'Berlin'", expected: [2], desc: "string inequality" },
+  { expr: "city != 'Berlin'", expected: [2, 4], desc: "string inequality" },
+  { expr: "city:Hamburg", expected: [4], desc: "Hamburg match" },
   { expr: "name ~= '^A'", expected: [1], desc: "regex match - starts with A" },
   { expr: "name ~= 'a'", expected: [3], desc: "regex match - contains lowercase 'a'" },
   { expr: "name ~= '[Aa]'", expected: [1, 3], desc: "regex match - contains 'a' case insensitive" },
@@ -52,38 +55,58 @@ const cases = [
   { expr: "Berlin", expected: [1, 3], desc: "free-text finds Berlin in city" },
   { expr: "name:Alice", expected: [1], desc: "field-specific substring" },
 
+  // Multi-word name tests
+  { expr: "Tim", expected: [4], desc: "free-text search finds Tim" },
+  { expr: "Lee", expected: [4], desc: "free-text search finds Lee" },
+  { expr: "jr", expected: [4], desc: "free-text search finds jr" },
+  { expr: "name:Tim", expected: [4], desc: "field search for Tim" },
+  { expr: "name:Lee", expected: [4], desc: "field search for Lee" },
+  { expr: "name:'Tim Lee'", expected: [4], desc: "quoted multi-word search" },
+  { expr: "name:'Tim Lee jr.'", expected: [4], desc: "quoted exact match with punctuation" },
+  { expr: "name ~= '^Tim'", expected: [4], desc: "regex match name starting with Tim" },
+  { expr: "name ~= 'Lee'", expected: [4], desc: "regex match containing Lee" },
+  { expr: "name ~= 'jr\\.'", expected: [4], desc: "regex match with escaped period" },
+
   // Boolean fields
-  { expr: "active = true", expected: [1, 2], desc: "boolean true" },
+  { expr: "active = true", expected: [1, 2, 4], desc: "boolean true" },
   { expr: "active = false", expected: [3], desc: "boolean false" },
   { expr: "active != true", expected: [3], desc: "boolean not true" },
 
   // Date comparisons
-  { expr: "created >= 2025-01-01", expected: [1, 3], desc: "date after 2025" },
+  { expr: "created >= 2025-01-01", expected: [1, 3, 4], desc: "date after 2025" },
   { expr: "created < 2025-01-01", expected: [2], desc: "date before 2025" },
-  { expr: "created > 2024-12-31", expected: [1, 3], desc: "date greater than" },
+  { expr: "created > 2024-12-31", expected: [1, 3, 4], desc: "date greater than" },
+  { expr: "created >= 2025-03-15", expected: [1, 3, 4], desc: "date on or after Tim's created date" },
 
   // OR operator
   { expr: "city:Berlin OR city:Munich", expected: [1, 2, 3], desc: "OR with two conditions" },
+  { expr: "city:Berlin OR city:Hamburg", expected: [1, 3, 4], desc: "OR including Hamburg" },
   { expr: "age < 25 OR age > 35", expected: [2, 3], desc: "OR with numeric ranges" },
+  { expr: "age < 25 OR age >= 35", expected: [2, 3, 4], desc: "OR including age 35" },
   { expr: "name:Alice OR name:Bob", expected: [1, 2], desc: "OR with field searches" },
+  { expr: "name:Alice OR name:Tim", expected: [1, 4], desc: "OR with Alice or Tim" },
 
   // AND operator (implicit)
   { expr: "city:Berlin age >= 30", expected: [1, 3], desc: "implicit AND" },
   { expr: "city:Berlin age < 40", expected: [1], desc: "AND narrows results" },
-  { expr: "active = true age >= 30", expected: [1], desc: "AND with boolean" },
+  { expr: "active = true age >= 30", expected: [1, 4], desc: "AND with boolean" },
+  { expr: "city:Hamburg age = 35", expected: [4], desc: "AND finds Tim" },
 
   // Combined AND/OR
   { expr: "city:Berlin age >= 30 OR city:Munich", expected: [1, 2, 3], desc: "mixed AND/OR" },
   { expr: "age > 25 city:Berlin OR name:Bob", expected: [1, 2, 3], desc: "complex DNF query" },
+  { expr: "name:Tim active = true OR city:Munich", expected: [2, 4], desc: "multi-word name in DNF" },
 
   // Empty query
-  { expr: "", expected: [1, 2, 3], desc: "empty query returns all" },
-  { expr: "   ", expected: [1, 2, 3], desc: "whitespace query returns all" },
+  { expr: "", expected: [1, 2, 3, 4], desc: "empty query returns all" },
+  { expr: "   ", expected: [1, 2, 3, 4], desc: "whitespace query returns all" },
 
   // Case insensitivity for strings
   { expr: "city:berlin", expected: [1, 3], desc: "case insensitive substring" },
   { expr: "name:alice", expected: [1], desc: "case insensitive name" },
   { expr: "BERLIN", expected: [1, 3], desc: "case insensitive free-text" },
+  { expr: "name:tim", expected: [4], desc: "case insensitive Tim" },
+  { expr: "name:LEE", expected: [4], desc: "case insensitive Lee" },
 ];
 
 for (const { expr, expected, desc } of cases) {
@@ -150,15 +173,15 @@ test("is empty / is not empty checks", () => {
 // Test type inference without explicit datatypes
 test("type inference without datatypes parameter", () => {
   const result = filterIds(rows, "age >= 30");
-  assert.deepEqual(result, [1, 3], "should infer types and work correctly");
+  assert.deepEqual(result, [1, 3, 4], "should infer types and work correctly");
 });
 
 test("type inference with date fields", () => {
   const result = filterIds(rows, "created >= 2025-01-01");
-  assert.deepEqual(result, [1, 3], "should infer date type and compare correctly");
+  assert.deepEqual(result, [1, 3, 4], "should infer date type and compare correctly");
 });
 
 test("type inference with boolean fields", () => {
   const result = filterIds(rows, "active = true");
-  assert.deepEqual(result, [1, 2], "should infer boolean type");
+  assert.deepEqual(result, [1, 2, 4], "should infer boolean type");
 });

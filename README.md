@@ -188,3 +188,225 @@ Evaluation logic:
 ```
 (group1 matches) OR (group2 matches)
 ```
+
+## Parsed Query Representation (DNF)
+
+The query parser produces an intermediate representation in Disjunctive Normal Form (DNF), represented as JSON.
+
+### Structure
+
+```typescript
+type ParsedQuery = OrGroup[];
+type OrGroup = Condition[];
+
+type Condition =
+  | ComparisonCondition
+  | FreeTextCondition
+  | IsEmptyCondition
+  | IsNotEmptyCondition;
+```
+
+### Condition Types
+
+#### 1. Comparison Condition
+Used for field comparisons with operators.
+
+```json
+{
+  "type": "comparison",
+  "field": "fieldName",
+  "operator": ">=",
+  "value": "30"
+}
+```
+
+**Operators**: `=`, `==`, `!=`, `>`, `>=`, `<`, `<=`, `:`, `~=`
+
+#### 2. Free-Text Condition
+Used for unqualified search terms that match against all string fields.
+
+```json
+{
+  "type": "freeText",
+  "value": "searchTerm"
+}
+```
+
+#### 3. Empty Check Condition
+Used for `field is empty` checks.
+
+```json
+{
+  "type": "isEmpty",
+  "field": "fieldName"
+}
+```
+
+#### 4. Not Empty Check Condition
+Used for `field is not empty` checks.
+
+```json
+{
+  "type": "isNotEmpty",
+  "field": "fieldName"
+}
+```
+
+### Examples
+
+#### Simple Query
+**Input**: `age >= 30`
+
+**Parsed**:
+```json
+[
+  [
+    {
+      "type": "comparison",
+      "field": "age",
+      "operator": ">=",
+      "value": "30"
+    }
+  ]
+]
+```
+
+#### AND Query (Implicit)
+**Input**: `city:Berlin age >= 30`
+
+**Parsed**:
+```json
+[
+  [
+    {
+      "type": "comparison",
+      "field": "city",
+      "operator": ":",
+      "value": "Berlin"
+    },
+    {
+      "type": "comparison",
+      "field": "age",
+      "operator": ">=",
+      "value": "30"
+    }
+  ]
+]
+```
+
+#### OR Query
+**Input**: `age < 25 OR age > 35`
+
+**Parsed**:
+```json
+[
+  [
+    {
+      "type": "comparison",
+      "field": "age",
+      "operator": "<",
+      "value": "25"
+    }
+  ],
+  [
+    {
+      "type": "comparison",
+      "field": "age",
+      "operator": ">",
+      "value": "35"
+    }
+  ]
+]
+```
+
+#### Complex DNF Query
+**Input**: `city:Berlin age >= 30 OR name:Alice`
+
+**Parsed**:
+```json
+[
+  [
+    {
+      "type": "comparison",
+      "field": "city",
+      "operator": ":",
+      "value": "Berlin"
+    },
+    {
+      "type": "comparison",
+      "field": "age",
+      "operator": ">=",
+      "value": "30"
+    }
+  ],
+  [
+    {
+      "type": "comparison",
+      "field": "name",
+      "operator": ":",
+      "value": "Alice"
+    }
+  ]
+]
+```
+
+**Evaluation**: `(city:Berlin AND age >= 30) OR (name:Alice)`
+
+#### Free-Text Search
+**Input**: `Berlin`
+
+**Parsed**:
+```json
+[
+  [
+    {
+      "type": "freeText",
+      "value": "Berlin"
+    }
+  ]
+]
+```
+
+#### Empty Check
+**Input**: `notes is empty`
+
+**Parsed**:
+```json
+[
+  [
+    {
+      "type": "isEmpty",
+      "field": "notes"
+    }
+  ]
+]
+```
+
+#### Mixed Query with Empty Check
+**Input**: `active = true notes is not empty`
+
+**Parsed**:
+```json
+[
+  [
+    {
+      "type": "comparison",
+      "field": "active",
+      "operator": "=",
+      "value": "true"
+    },
+    {
+      "type": "isNotEmpty",
+      "field": "notes"
+    }
+  ]
+]
+```
+
+### Evaluation Algorithm
+
+1. For each OR group in the parsed query:
+   - Evaluate all conditions in the group (AND semantics)
+   - If all conditions in the group are true, the row matches
+2. If any OR group matches, include the row in the results
+3. If the parsed query is empty (no groups), all rows match
