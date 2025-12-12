@@ -279,14 +279,46 @@ function evaluateCondition(condition, row, types) {
   if (condition.type === "freeText") {
     const searchTerm = condition.value.toLowerCase();
 
-    // Search in all string fields
+    // Boolean field shorthand: if search term matches a boolean field name, check if it's true
     for (const [field, type] of Object.entries(types)) {
-      if (type === "string") {
+      if (type === "boolean" && field.toLowerCase() === searchTerm) {
         const value = row[field];
-        if (value !== null && value !== undefined) {
-          if (String(value).toLowerCase().includes(searchTerm)) {
-            return true;
-          }
+        if (value === null || value === undefined) {
+          return false;
+        }
+        const normalizedValue = String(value).toLowerCase() === "true";
+        return normalizedValue;
+      }
+    }
+
+    // Search in all fields
+    for (const [field, type] of Object.entries(types)) {
+      const value = row[field];
+      if (value === null || value === undefined) {
+        continue;
+      }
+
+      if (type === "string") {
+        // String: case-insensitive substring match
+        if (String(value).toLowerCase().includes(searchTerm)) {
+          return true;
+        }
+      } else if (type === "boolean") {
+        // Boolean: match if searchTerm is "true" and field is true, or "false" and field is false
+        const normalizedValue = String(value).toLowerCase() === "true";
+        if ((searchTerm === "true" && normalizedValue) || (searchTerm === "false" && !normalizedValue)) {
+          return true;
+        }
+      } else if (type === "number") {
+        // Number: convert to string and do substring match
+        if (String(value).includes(searchTerm)) {
+          return true;
+        }
+      } else if (type === "date") {
+        // Date: convert to string representation and do substring match
+        const dateStr = String(value).toLowerCase();
+        if (dateStr.includes(searchTerm)) {
+          return true;
         }
       }
     }
@@ -338,7 +370,7 @@ function evaluateCondition(condition, row, types) {
     }
 
     if (operator === "~=") {
-      if (type === "string") {
+      if (type === "string" || type === "number" || type === "date") {
         try {
           const regex = new RegExp(condValue);
           return regex.test(String(rowValue));

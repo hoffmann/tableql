@@ -84,22 +84,27 @@ Precedence:
 
 ## Comparison Operators
 
-| Operator | Supported Types | Semantics                          |
-| -------- | --------------- | ---------------------------------- |
-| `:`      | all             | equality (string: substring match) |
-| `=`      | all             | strict equality                    |
-| `!=`     | all             | inequality                         |
-| `>`      | number, date    | greater than                       |
-| `>=`     | number, date    | greater or equal                   |
-| `<`      | number, date    | less than                          |
-| `<=`     | number, date    | less or equal                      |
-| `~=`     | string          | matches regex operator             |
+| Operator | Supported Types    | Semantics                                             |
+| -------- | ------------------ | ----------------------------------------------------- |
+| `:`      | all                | equality (string: substring match)                    |
+| `=`      | all                | strict equality                                       |
+| `!=`     | all                | inequality                                            |
+| `>`      | number, date       | greater than                                          |
+| `>=`     | number, date       | greater or equal                                      |
+| `<`      | number, date       | less than                                             |
+| `<=`     | number, date       | less or equal                                         |
+| `~=`     | string, number, date | matches regex against string representation of field |
 
-String-specific behavior
+### Operator Behavior
 
-`:` → substring match
+**String operators:**
+- `:` → substring match
+- `=` → exact match
 
-`=` → exact match
+**Regex operator (`~=`):**
+- For `string` fields: matches against the string value
+- For `number` fields: converts number to string (e.g., `30`) and matches
+- For `date` fields: converts date to string representation (e.g., `2025-01-15`) and matches
 
 ## Field Expressions
 ### Basic Comparisons
@@ -108,20 +113,54 @@ field:Value
 field=Value
 field!=Value
 field>=10
+```
 
-Examples
+**Examples:**
 ```
 priority>=3
 status:open
 created<2025-01-01
 ```
 
+### Regex Matching
+Use the `~=` operator to match against regular expressions:
+
+**String fields:**
+```
+name ~= '^A'        # Names starting with A
+email ~= '@gmail\.com$'   # Gmail addresses
+```
+
+**Number fields:**
+```
+age ~= '^3'         # Ages starting with 3 (30-39)
+age ~= '0$'         # Ages ending with 0 (10, 20, 30, etc.)
+price ~= '^[1-5]'   # Prices starting with 1-5
+```
+
+**Date fields:**
+```
+created ~= '^2025'       # Dates in 2025
+created ~= '-01-'        # Dates in January
+created ~= '2024-.*-15'  # Dates on the 15th of any month in 2024
+```
+
 ### Boolean Shorthand
-If a boolean field is referenced without an operator, it is treated as: `field == true`
+If a boolean field name is used as a search term (without an operator), it matches rows where that field is `true`.
 
-Example:
+Examples:
 
-`blocked` Equivalent to: `blocked:true`
+```
+active
+```
+Returns all rows where the `active` field is `true`.
+
+```
+blocked
+```
+Returns all rows where the `blocked` field is `true`.
+
+This works through the free-text search mechanism and is case-insensitive.
 
 
 ## Empty / Not Empty Checks
@@ -143,22 +182,65 @@ title is not empty
 
 ## Free-Text Search
 ### Syntax
-ist's just a term, if it's enquoted with " it will be parsed as one string
+It's just a term. If it's enclosed with `"`, it will be parsed as one string.
 ```
 term
 "term with whitespace"
 ```
 
 ### Semantics
-Matches against all string fields in a Case-insensitive Substring match
+Matches against **all fields** (not just strings) using type-specific matching:
 
+| Field Type | Matching Behavior                                                    |
+| ---------- | -------------------------------------------------------------------- |
+| `string`   | Case-insensitive substring match                                     |
+| `boolean`  | If search term matches a boolean field name, matches where that field is true.<br>If search term is "true"/"false", matches any boolean field with that value. |
+| `number`   | Converts number to string and performs substring match               |
+| `date`     | Converts date to string representation and performs substring match  |
 
-Example:
+### Examples
+
+**String fields:**
 ```
 login
 ```
+Matches any row where a string field contains "login".
 
-Matches any row where a string column contains "login".
+**Boolean fields:**
+
+*Boolean field name shorthand:*
+```
+active
+```
+Matches any row where the boolean field `active` is `true`. This is case-insensitive.
+
+*Boolean literal values:*
+```
+true
+```
+Matches any row where any boolean field is `true`.
+
+```
+false
+```
+Matches any row where any boolean field is `false`.
+
+**Number fields:**
+```
+30
+```
+Matches any row where a number field contains "30" (e.g., `30`, `130`, `300`).
+
+**Date fields:**
+```
+2025
+```
+Matches any row where a date field contains "2025" (e.g., `2025-01-15`, `2025-06-01`).
+
+```
+01-01
+```
+Matches any row where a date field contains "01-01" (e.g., `2024-01-01`, `2026-01-01`).
 
 ## Grouping and Evaluation
 ### AND Semantics

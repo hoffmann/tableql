@@ -50,10 +50,42 @@ const cases = [
   { expr: "name ~= 'a'", expected: [3], desc: "regex match - contains lowercase 'a'" },
   { expr: "name ~= '[Aa]'", expected: [1, 3], desc: "regex match - contains 'a' case insensitive" },
 
-  // Free-text search
+  // Regex on number fields
+  { expr: "age ~= '^3'", expected: [1, 4], desc: "regex match - age starts with 3 (30, 35)" },
+  { expr: "age ~= '0$'", expected: [1, 3], desc: "regex match - age ends with 0 (30, 40)" },
+  { expr: "age ~= '^[234]'", expected: [1, 2, 3, 4], desc: "regex match - age starts with 2, 3, or 4 (22, 30, 35, 40)" },
+  { expr: "age ~= '^22$'", expected: [2], desc: "regex match - exact age 22" },
+  { expr: "age ~= '^[23]0$'", expected: [1], desc: "regex match - age 20 or 30" },
+
+  // Regex on date fields
+  { expr: "created ~= '^2025'", expected: [3, 4], desc: "regex match - dates starting with 2025" },
+  { expr: "created ~= '2026'", expected: [1], desc: "regex match - dates containing 2026" },
+  { expr: "created ~= '01$'", expected: [1, 3], desc: "regex match - dates ending with 01" },
+  { expr: "created ~= '-01-'", expected: [1, 2], desc: "regex match - dates with -01- (January)" },
+  { expr: "created ~= '-0[36]-'", expected: [3, 4], desc: "regex match - dates in March or June" },
+  { expr: "created ~= '2024-.*-25'", expected: [2], desc: "regex match - specific date pattern" },
+
+  // Free-text search - strings
   { expr: "Alice", expected: [1], desc: "free-text search" },
   { expr: "Berlin", expected: [1, 3], desc: "free-text finds Berlin in city" },
   { expr: "name:Alice", expected: [1], desc: "field-specific substring" },
+
+  // Free-text search - booleans
+  { expr: "true", expected: [1, 2, 4], desc: "free-text search for true matches boolean fields" },
+  { expr: "false", expected: [3], desc: "free-text search for false matches boolean fields" },
+  { expr: "active", expected: [1, 2, 4], desc: "boolean field name shorthand matches active=true" },
+
+  // Free-text search - numbers
+  { expr: "30", expected: [1], desc: "free-text search matches age 30" },
+  { expr: "22", expected: [2], desc: "free-text search matches age 22 or id 2" },
+  { expr: "40", expected: [3], desc: "free-text search matches age 40" },
+  { expr: "35", expected: [4], desc: "free-text search matches age 35" },
+
+  // Free-text search - dates
+  { expr: "2025", expected: [3, 4], desc: "free-text search matches dates containing 2025" },
+  { expr: "2024", expected: [2], desc: "free-text search matches dates containing 2024" },
+  { expr: "2026", expected: [1], desc: "free-text search matches dates containing 2026" },
+  { expr: "01-01", expected: [1], desc: "free-text search matches date pattern 01-01" },
 
   // Multi-word name tests
   { expr: "Tim", expected: [4], desc: "free-text search finds Tim" },
@@ -260,4 +292,20 @@ test("Complex query with ORDER BY", () => {
 test("ORDER BY with name field", () => {
   const result = filterIds(rows, "active = true ORDER BY name ASC", { datatypes });
   assert.deepEqual(result, [1, 2, 4], "should order active users by name");
+});
+
+// Boolean field shorthand tests
+test("Boolean field shorthand - active", () => {
+  const result = filterIds(rows, "active", { datatypes });
+  assert.deepEqual(result, [1, 2, 4], "typing 'active' should return all rows where active=true");
+});
+
+test("Boolean field shorthand - case insensitive", () => {
+  const result = filterIds(rows, "ACTIVE", { datatypes });
+  assert.deepEqual(result, [1, 2, 4], "typing 'ACTIVE' should be case insensitive");
+});
+
+test("Boolean field shorthand with other conditions", () => {
+  const result = filterIds(rows, "active age >= 30", { datatypes });
+  assert.deepEqual(result, [1, 4], "should combine boolean shorthand with other conditions");
 });

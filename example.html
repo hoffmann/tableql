@@ -212,8 +212,15 @@
     <li><code>city:Berlin</code> - Find people in Berlin</li>
     <li><code>city:Berlin age >= 30</code> - Berlin residents 30 or older (AND)</li>
     <li><code>city:Berlin OR city:Munich</code> - People in either city (OR)</li>
-    <li><code>name ~= ^A</code> - Names starting with A (regex)</li>
-    <li><code>Alice</code> - Free-text search across all string fields</li>
+    <li><code>name ~= ^A</code> - Names starting with A (regex on string)</li>
+    <li><code>age ~= ^3</code> - Ages starting with 3 (regex on number: 30, 35)</li>
+    <li><code>created ~= ^2025</code> - Dates in 2025 (regex on date)</li>
+    <li><code>Alice</code> - Free-text search (finds in any string field)</li>
+    <li><code>active</code> - Boolean field shorthand (finds all active users)</li>
+    <li><code>true</code> - Free-text search for boolean true (any boolean field)</li>
+    <li><code>false</code> - Free-text search for boolean false (inactive users)</li>
+    <li><code>30</code> - Free-text search for number (matches age 30)</li>
+    <li><code>2025</code> - Free-text search for date (matches dates containing 2025)</li>
     <li><code>ORDER BY age ASC</code> - Sort by age, youngest to oldest</li>
     <li><code>ORDER BY age DESC</code> - Sort by age, oldest to youngest</li>
     <li><code>ORDER BY name ASC</code> - Sort alphabetically by name</li>
