@@ -189,6 +189,104 @@ Evaluation logic:
 (group1 matches) OR (group2 matches)
 ```
 
+## Ordering Results
+
+### Syntax
+
+Results can be ordered using the `ORDER BY` clause at the end of the query:
+
+```
+[filter expression] ORDER BY fieldname [ASC|DESC]
+```
+
+- `fieldname`: The field to sort by
+- `ASC`: Ascending order (default if omitted)
+- `DESC`: Descending order
+
+### Semantics
+
+- Ordering is applied **after** filtering
+- Sort order depends on the field's data type:
+  - **number**: Numeric comparison
+  - **date**: Chronological comparison (timestamp)
+  - **string**: Lexicographic comparison (case-insensitive)
+  - **boolean**: false < true
+- If no direction is specified, `ASC` is used by default
+
+### Examples
+
+#### Basic Ordering
+
+```
+ORDER BY age ASC
+```
+Returns all rows ordered by age, youngest to oldest.
+
+```
+ORDER BY age DESC
+```
+Returns all rows ordered by age, oldest to youngest.
+
+```
+ORDER BY name
+```
+Returns all rows ordered by name alphabetically (ascending is default).
+
+#### Ordering with Filters
+
+```
+age >= 30 ORDER BY age ASC
+```
+Returns only rows where age is 30 or more, ordered youngest to oldest.
+
+```
+city:Berlin ORDER BY age DESC
+```
+Returns Berlin residents ordered by age, oldest to youngest.
+
+```
+active = true ORDER BY name ASC
+```
+Returns active users ordered alphabetically by name.
+
+#### Complex Queries with Ordering
+
+```
+age < 25 OR age > 35 ORDER BY age ASC
+```
+Returns rows where age is less than 25 or greater than 35, ordered by age.
+
+```
+city:Berlin age >= 30 OR city:Munich ORDER BY created DESC
+```
+Returns Berlin residents 30+ or Munich residents, ordered by creation date (newest first).
+
+### Ordering by Different Types
+
+**Numbers**:
+```
+ORDER BY age ASC          → 22, 30, 35, 40
+ORDER BY age DESC         → 40, 35, 30, 22
+```
+
+**Strings**:
+```
+ORDER BY name ASC         → Alice, Bob, Cara, Tim Lee jr.
+ORDER BY city DESC        → Munich, Hamburg, Berlin
+```
+
+**Dates**:
+```
+ORDER BY created ASC      → 2024-01-25, 2025-03-15, 2025-06-01, 2026-01-01
+ORDER BY created DESC     → 2026-01-01, 2025-06-01, 2025-03-15, 2024-01-25
+```
+
+**Booleans**:
+```
+ORDER BY active ASC       → false entries first, then true entries
+ORDER BY active DESC      → true entries first, then false entries
+```
+
 ## Parsed Query Representation (DNF)
 
 The query parser produces an intermediate representation in Disjunctive Normal Form (DNF), represented as JSON.
@@ -196,8 +294,17 @@ The query parser produces an intermediate representation in Disjunctive Normal F
 ### Structure
 
 ```typescript
-type ParsedQuery = OrGroup[];
+type ParsedQuery = {
+  orGroups: OrGroup[];
+  orderBy: OrderBy | null;
+};
+
 type OrGroup = Condition[];
+
+type OrderBy = {
+  field: string;
+  direction: "ASC" | "DESC";
+};
 
 type Condition =
   | ComparisonCondition
@@ -259,16 +366,19 @@ Used for `field is not empty` checks.
 
 **Parsed**:
 ```json
-[
-  [
-    {
-      "type": "comparison",
-      "field": "age",
-      "operator": ">=",
-      "value": "30"
-    }
-  ]
-]
+{
+  "orGroups": [
+    [
+      {
+        "type": "comparison",
+        "field": "age",
+        "operator": ">=",
+        "value": "30"
+      }
+    ]
+  ],
+  "orderBy": null
+}
 ```
 
 #### AND Query (Implicit)
@@ -276,22 +386,25 @@ Used for `field is not empty` checks.
 
 **Parsed**:
 ```json
-[
-  [
-    {
-      "type": "comparison",
-      "field": "city",
-      "operator": ":",
-      "value": "Berlin"
-    },
-    {
-      "type": "comparison",
-      "field": "age",
-      "operator": ">=",
-      "value": "30"
-    }
-  ]
-]
+{
+  "orGroups": [
+    [
+      {
+        "type": "comparison",
+        "field": "city",
+        "operator": ":",
+        "value": "Berlin"
+      },
+      {
+        "type": "comparison",
+        "field": "age",
+        "operator": ">=",
+        "value": "30"
+      }
+    ]
+  ],
+  "orderBy": null
+}
 ```
 
 #### OR Query
@@ -299,24 +412,27 @@ Used for `field is not empty` checks.
 
 **Parsed**:
 ```json
-[
-  [
-    {
-      "type": "comparison",
-      "field": "age",
-      "operator": "<",
-      "value": "25"
-    }
+{
+  "orGroups": [
+    [
+      {
+        "type": "comparison",
+        "field": "age",
+        "operator": "<",
+        "value": "25"
+      }
+    ],
+    [
+      {
+        "type": "comparison",
+        "field": "age",
+        "operator": ">",
+        "value": "35"
+      }
+    ]
   ],
-  [
-    {
-      "type": "comparison",
-      "field": "age",
-      "operator": ">",
-      "value": "35"
-    }
-  ]
-]
+  "orderBy": null
+}
 ```
 
 #### Complex DNF Query
@@ -324,30 +440,33 @@ Used for `field is not empty` checks.
 
 **Parsed**:
 ```json
-[
-  [
-    {
-      "type": "comparison",
-      "field": "city",
-      "operator": ":",
-      "value": "Berlin"
-    },
-    {
-      "type": "comparison",
-      "field": "age",
-      "operator": ">=",
-      "value": "30"
-    }
+{
+  "orGroups": [
+    [
+      {
+        "type": "comparison",
+        "field": "city",
+        "operator": ":",
+        "value": "Berlin"
+      },
+      {
+        "type": "comparison",
+        "field": "age",
+        "operator": ">=",
+        "value": "30"
+      }
+    ],
+    [
+      {
+        "type": "comparison",
+        "field": "name",
+        "operator": ":",
+        "value": "Alice"
+      }
+    ]
   ],
-  [
-    {
-      "type": "comparison",
-      "field": "name",
-      "operator": ":",
-      "value": "Alice"
-    }
-  ]
-]
+  "orderBy": null
+}
 ```
 
 **Evaluation**: `(city:Berlin AND age >= 30) OR (name:Alice)`
@@ -357,14 +476,17 @@ Used for `field is not empty` checks.
 
 **Parsed**:
 ```json
-[
-  [
-    {
-      "type": "freeText",
-      "value": "Berlin"
-    }
-  ]
-]
+{
+  "orGroups": [
+    [
+      {
+        "type": "freeText",
+        "value": "Berlin"
+      }
+    ]
+  ],
+  "orderBy": null
+}
 ```
 
 #### Empty Check
@@ -372,14 +494,17 @@ Used for `field is not empty` checks.
 
 **Parsed**:
 ```json
-[
-  [
-    {
-      "type": "isEmpty",
-      "field": "notes"
-    }
-  ]
-]
+{
+  "orGroups": [
+    [
+      {
+        "type": "isEmpty",
+        "field": "notes"
+      }
+    ]
+  ],
+  "orderBy": null
+}
 ```
 
 #### Mixed Query with Empty Check
@@ -387,20 +512,60 @@ Used for `field is not empty` checks.
 
 **Parsed**:
 ```json
-[
-  [
-    {
-      "type": "comparison",
-      "field": "active",
-      "operator": "=",
-      "value": "true"
-    },
-    {
-      "type": "isNotEmpty",
-      "field": "notes"
-    }
-  ]
-]
+{
+  "orGroups": [
+    [
+      {
+        "type": "comparison",
+        "field": "active",
+        "operator": "=",
+        "value": "true"
+      },
+      {
+        "type": "isNotEmpty",
+        "field": "notes"
+      }
+    ]
+  ],
+  "orderBy": null
+}
+```
+
+#### Query with ORDER BY
+**Input**: `age >= 30 ORDER BY age DESC`
+
+**Parsed**:
+```json
+{
+  "orGroups": [
+    [
+      {
+        "type": "comparison",
+        "field": "age",
+        "operator": ">=",
+        "value": "30"
+      }
+    ]
+  ],
+  "orderBy": {
+    "field": "age",
+    "direction": "DESC"
+  }
+}
+```
+
+#### ORDER BY without Filter
+**Input**: `ORDER BY name ASC`
+
+**Parsed**:
+```json
+{
+  "orGroups": [],
+  "orderBy": {
+    "field": "name",
+    "direction": "ASC"
+  }
+}
 ```
 
 ### Evaluation Algorithm
@@ -410,3 +575,4 @@ Used for `field is not empty` checks.
    - If all conditions in the group are true, the row matches
 2. If any OR group matches, include the row in the results
 3. If the parsed query is empty (no groups), all rows match
+4. If an `orderBy` clause is present, sort the filtered results by the specified field and direction

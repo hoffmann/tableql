@@ -214,6 +214,12 @@
     <li><code>city:Berlin OR city:Munich</code> - People in either city (OR)</li>
     <li><code>name ~= ^A</code> - Names starting with A (regex)</li>
     <li><code>Alice</code> - Free-text search across all string fields</li>
+    <li><code>ORDER BY age ASC</code> - Sort by age, youngest to oldest</li>
+    <li><code>ORDER BY age DESC</code> - Sort by age, oldest to youngest</li>
+    <li><code>ORDER BY name ASC</code> - Sort alphabetically by name</li>
+    <li><code>age >= 30 ORDER BY age DESC</code> - People 30+ sorted by age descending</li>
+    <li><code>city:Berlin ORDER BY age ASC</code> - Berlin residents sorted by age</li>
+    <li><code>active = true ORDER BY name ASC</code> - Active people sorted by name</li>
   </ul>
 </div>
 

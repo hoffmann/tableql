@@ -185,3 +185,79 @@ test("type inference with boolean fields", () => {
   const result = filterIds(rows, "active = true");
   assert.deepEqual(result, [1, 2, 4], "should infer boolean type");
 });
+
+// ORDER BY tests
+test("ORDER BY age ASC", () => {
+  const result = filterIds(rows, "ORDER BY age ASC", { datatypes });
+  assert.deepEqual(result, [2, 1, 4, 3], "should order by age ascending");
+});
+
+test("ORDER BY age DESC", () => {
+  const result = filterIds(rows, "ORDER BY age DESC", { datatypes });
+  assert.deepEqual(result, [3, 4, 1, 2], "should order by age descending");
+});
+
+test("ORDER BY age (default ASC)", () => {
+  const result = filterIds(rows, "ORDER BY age", { datatypes });
+  assert.deepEqual(result, [2, 1, 4, 3], "should default to ascending order");
+});
+
+test("ORDER BY name ASC", () => {
+  const result = filterIds(rows, "ORDER BY name ASC", { datatypes });
+  assert.deepEqual(result, [1, 2, 3, 4], "should order by name ascending (Alice, Bob, Cara, Tim Lee jr.)");
+});
+
+test("ORDER BY name DESC", () => {
+  const result = filterIds(rows, "ORDER BY name DESC", { datatypes });
+  assert.deepEqual(result, [4, 3, 2, 1], "should order by name descending");
+});
+
+test("ORDER BY city ASC", () => {
+  const result = filterIds(rows, "ORDER BY city ASC", { datatypes });
+  assert.deepEqual(result, [1, 3, 4, 2], "should order by city ascending (Berlin, Berlin, Hamburg, Munich)");
+});
+
+test("ORDER BY created ASC", () => {
+  const result = filterIds(rows, "ORDER BY created ASC", { datatypes });
+  assert.deepEqual(result, [2, 4, 3, 1], "should order by date ascending");
+});
+
+test("ORDER BY created DESC", () => {
+  const result = filterIds(rows, "ORDER BY created DESC", { datatypes });
+  assert.deepEqual(result, [1, 3, 4, 2], "should order by date descending");
+});
+
+test("Filter with ORDER BY - age >= 30 ORDER BY age ASC", () => {
+  const result = filterIds(rows, "age >= 30 ORDER BY age ASC", { datatypes });
+  assert.deepEqual(result, [1, 4, 3], "should filter then order");
+});
+
+test("Filter with ORDER BY - age >= 30 ORDER BY age DESC", () => {
+  const result = filterIds(rows, "age >= 30 ORDER BY age DESC", { datatypes });
+  assert.deepEqual(result, [3, 4, 1], "should filter then order descending");
+});
+
+test("Filter with ORDER BY - city:Berlin ORDER BY age ASC", () => {
+  const result = filterIds(rows, "city:Berlin ORDER BY age ASC", { datatypes });
+  assert.deepEqual(result, [1, 3], "should filter by city then order by age");
+});
+
+test("Filter with ORDER BY - city:Berlin ORDER BY age DESC", () => {
+  const result = filterIds(rows, "city:Berlin ORDER BY age DESC", { datatypes });
+  assert.deepEqual(result, [3, 1], "should filter by city then order by age descending");
+});
+
+test("OR query with ORDER BY", () => {
+  const result = filterIds(rows, "age < 25 OR age > 35 ORDER BY age ASC", { datatypes });
+  assert.deepEqual(result, [2, 3], "should handle OR with ORDER BY");
+});
+
+test("Complex query with ORDER BY", () => {
+  const result = filterIds(rows, "active = true ORDER BY age DESC", { datatypes });
+  assert.deepEqual(result, [4, 1, 2], "should filter active=true and order by age desc");
+});
+
+test("ORDER BY with name field", () => {
+  const result = filterIds(rows, "active = true ORDER BY name ASC", { datatypes });
+  assert.deepEqual(result, [1, 2, 4], "should order active users by name");
+});

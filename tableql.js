@@ -111,14 +111,40 @@ function normalize(value, type) {
   }
 }
 
-// Parse tokens into AST structure (DNF)
+// Parse tokens into AST structure (DNF) and extract ORDER BY
 function parse(tokens) {
+  // Check for ORDER BY clause and split tokens
+  let orderBy = null;
+  let filterTokens = tokens;
+
+  for (let i = 0; i < tokens.length - 1; i++) {
+    if (tokens[i].toUpperCase() === "ORDER" && tokens[i + 1].toUpperCase() === "BY") {
+      // Found ORDER BY, extract it
+      filterTokens = tokens.slice(0, i);
+
+      if (i + 2 < tokens.length) {
+        const field = tokens[i + 2];
+        let direction = "ASC"; // default
+
+        if (i + 3 < tokens.length) {
+          const dir = tokens[i + 3].toUpperCase();
+          if (dir === "ASC" || dir === "DESC") {
+            direction = dir;
+          }
+        }
+
+        orderBy = { field, direction };
+      }
+      break;
+    }
+  }
+
   const orGroups = [];
   let currentGroup = [];
 
   let i = 0;
-  while (i < tokens.length) {
-    const token = tokens[i];
+  while (i < filterTokens.length) {
+    const token = filterTokens[i];
 
     if (token.toUpperCase() === "OR") {
       if (currentGroup.length > 0) {
@@ -135,14 +161,14 @@ function parse(tokens) {
     }
 
     // Check for "is empty" or "is not empty"
-    if (i + 2 < tokens.length && tokens[i + 1].toLowerCase() === "is") {
-      if (tokens[i + 2].toLowerCase() === "empty") {
+    if (i + 2 < filterTokens.length && filterTokens[i + 1].toLowerCase() === "is") {
+      if (filterTokens[i + 2].toLowerCase() === "empty") {
         currentGroup.push({ type: "isEmpty", field: token });
         i += 3;
         continue;
-      } else if (i + 3 < tokens.length &&
-                 tokens[i + 2].toLowerCase() === "not" &&
-                 tokens[i + 3].toLowerCase() === "empty") {
+      } else if (i + 3 < filterTokens.length &&
+                 filterTokens[i + 2].toLowerCase() === "not" &&
+                 filterTokens[i + 3].toLowerCase() === "empty") {
         currentGroup.push({ type: "isNotEmpty", field: token });
         i += 4;
         continue;
@@ -167,16 +193,16 @@ function parse(tokens) {
           matched = true;
           break;
         }
-      } else if (i + 1 < tokens.length) {
-        const nextToken = tokens[i + 1];
+      } else if (i + 1 < filterTokens.length) {
+        const nextToken = filterTokens[i + 1];
 
         // Check if the next token is exactly the operator
-        if (nextToken === op && i + 2 < tokens.length) {
+        if (nextToken === op && i + 2 < filterTokens.length) {
           currentGroup.push({
             type: "comparison",
             field: token,
             operator: op,
-            value: tokens[i + 2]
+            value: filterTokens[i + 2]
           });
           i += 2; // Will be incremented by 1 at the end, total +3
           matched = true;
@@ -215,7 +241,7 @@ function parse(tokens) {
     orGroups.push(currentGroup);
   }
 
-  return orGroups;
+  return { orGroups, orderBy };
 }
 
 // Evaluate a single condition against a row
@@ -359,11 +385,28 @@ export function filterIds(rows, expr, { idKey = "id", datatypes = null } = {}) {
 
   const types = datatypes || inferTypes(rows);
   const tokens = tokenize(expr);
-  const orGroups = parse(tokens);
+  const { orGroups, orderBy } = parse(tokens);
 
-  return rows
-    .filter(row => evaluateQuery(orGroups, row, types))
-    .map(row => row[idKey]);
+  let filteredRows = rows.filter(row => evaluateQuery(orGroups, row, types));
+
+  // Apply ordering if specified
+  if (orderBy) {
+    const { field, direction } = orderBy;
+    const fieldType = types[field] || "string";
+
+    filteredRows = filteredRows.sort((a, b) => {
+      const aVal = normalize(a[field], fieldType);
+      const bVal = normalize(b[field], fieldType);
+
+      let comparison = 0;
+      if (aVal < bVal) comparison = -1;
+      else if (aVal > bVal) comparison = 1;
+
+      return direction === "DESC" ? -comparison : comparison;
+    });
+  }
+
+  return filteredRows.map(row => row[idKey]);
 }
 
 export function parseTable(tableLike) {
@@ -479,8 +522,13 @@ export function initTableQL(searchSelector, tableSelector, { debug = false } = {
     }
 
     if (!query) {
-      // Show all rows
+      // Show all rows in original order
       tableRows.forEach(row => row.style.display = '');
+      // Reset to original order
+      const tbody = table.querySelector('tbody');
+      rows.forEach((_, index) => {
+        tbody.appendChild(tableRows[index]);
+      });
       return;
     }
 
@@ -488,12 +536,23 @@ export function initTableQL(searchSelector, tableSelector, { debug = false } = {
       const matchingIds = filterIds(rows, query, { datatypes });
       const matchingIdSet = new Set(matchingIds.map(id => String(id)));
 
+      // Create a map from id to table row element
+      const idToRowElement = new Map();
       tableRows.forEach((row, index) => {
         const rowId = String(rows[index].id);
-        if (matchingIdSet.has(rowId)) {
-          row.style.display = '';
-        } else {
-          row.style.display = 'none';
+        idToRowElement.set(rowId, row);
+      });
+
+      // Hide all rows first
+      tableRows.forEach(row => row.style.display = 'none');
+
+      // Show and reorder matching rows according to the sorted matchingIds
+      const tbody = table.querySelector('tbody');
+      matchingIds.forEach(id => {
+        const rowElement = idToRowElement.get(String(id));
+        if (rowElement) {
+          rowElement.style.display = '';
+          tbody.appendChild(rowElement); // Move to end, creating the sorted order
         }
       });
     } catch (e) {
