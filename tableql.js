@@ -498,7 +498,7 @@ export function deferTypes(tableLike){
   return types;
 }
 
-export function initTableQL(searchSelector, tableSelector, { debug = false } = {}) {
+export function initTableQL(searchSelector, tableSelector, { debug = false, storeQueryString = null } = {}) {
   const searchContainer = document.querySelector(searchSelector);
   const table = document.querySelector(tableSelector);
 
@@ -519,6 +519,15 @@ export function initTableQL(searchSelector, tableSelector, { debug = false } = {
   input.placeholder = 'Search... (e.g., age >= 30, city:Berlin)';
   searchContainer.appendChild(input);
 
+  // Initialize from URL query parameter if specified
+  if (storeQueryString) {
+    const urlParams = new URLSearchParams(window.location.search);
+    const queryFromUrl = urlParams.get(storeQueryString);
+    if (queryFromUrl) {
+      input.value = queryFromUrl;
+    }
+  }
+
   // Create debug output container if needed
   let debugContainer;
   if (debug) {
@@ -528,8 +537,19 @@ export function initTableQL(searchSelector, tableSelector, { debug = false } = {
   }
 
   // Filter function
-  function applyFilter() {
+  function applyFilter(updateUrl = true) {
     const query = input.value.trim();
+
+    // Update URL query parameter if storeQueryString is set
+    if (storeQueryString && updateUrl) {
+      const url = new URL(window.location);
+      if (query) {
+        url.searchParams.set(storeQueryString, query);
+      } else {
+        url.searchParams.delete(storeQueryString);
+      }
+      window.history.pushState({}, '', url);
+    }
 
     if (debug && debugContainer) {
       if (query) {
@@ -594,6 +614,19 @@ export function initTableQL(searchSelector, tableSelector, { debug = false } = {
 
   // Add event listener for filter-as-you-type
   input.addEventListener('input', applyFilter);
+
+  // Handle browser back/forward navigation
+  if (storeQueryString) {
+    window.addEventListener('popstate', () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const queryFromUrl = urlParams.get(storeQueryString) || '';
+      input.value = queryFromUrl;
+      applyFilter(false); // Don't update URL again
+    });
+  }
+
+  // Run initial filter (especially important if loaded with URL query)
+  applyFilter(false); // Don't push to history on initial load
 
   return {
     input,

@@ -369,6 +369,89 @@ ORDER BY active ASC       → false entries first, then true entries
 ORDER BY active DESC      → true entries first, then false entries
 ```
 
+## HTML Table Integration
+
+The `initTableQL()` function provides a simple way to add TableQL filtering to HTML tables.
+
+### Basic Usage
+
+```javascript
+import { initTableQL } from './tableql.js';
+
+// Initialize with search container and table selectors
+initTableQL('#search', '#mytable');
+```
+
+This will:
+- Create a search input box in the `#search` container
+- Parse the table structure and infer field types from `data-type` attributes
+- Enable filter-as-you-type functionality
+- Show/hide and reorder table rows based on the query
+
+### Options
+
+#### Debug Mode
+
+Enable debug mode to see the parsed query structure:
+
+```javascript
+initTableQL('#search', '#mytable', { debug: true });
+```
+
+#### URL Query Parameter Syncing
+
+Enable URL query parameter syncing to make queries shareable via URL:
+
+```javascript
+initTableQL('#search', '#mytable', { storeQueryString: 'q' });
+```
+
+When enabled:
+- The query is automatically saved to the URL query parameter (e.g., `example.html?q=city:Berlin`)
+- Users can share URLs with specific queries
+- The page loads with the query from the URL and applies the filter immediately
+- Browser back/forward navigation works correctly
+- The URL is updated as the user types
+
+**Example URLs:**
+```
+example.html?q=age%20%3E%3D%2030
+example.html?q=city:Berlin%20OR%20city:Munich
+example.html?q=active%20ORDER%20BY%20name%20ASC
+```
+
+#### Complete Example
+
+```javascript
+initTableQL('#search', '#mytable', {
+  debug: true,           // Show parsed query
+  storeQueryString: 'q'  // Enable URL syncing
+});
+```
+
+### Table Structure
+
+Make sure your HTML table has `data-type` attributes on header cells to specify field types:
+
+```html
+<table id="mytable">
+  <thead>
+    <tr>
+      <th data-type="number">id</th>
+      <th data-type="string">name</th>
+      <th data-type="number">age</th>
+      <th data-type="date">created</th>
+      <th data-type="boolean">active</th>
+    </tr>
+  </thead>
+  <tbody>
+    <!-- ... table rows ... -->
+  </tbody>
+</table>
+```
+
+If no `data-type` attribute is present, the field will default to `string`.
+
 ## Parsed Query Representation (DNF)
 
 The query parser produces an intermediate representation in Disjunctive Normal Form (DNF), represented as JSON.

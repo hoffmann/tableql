@@ -233,9 +233,10 @@
 <script type="module">
   import { initTableQL } from './tableql.js';
 
-  // Initialize with debug mode enabled
+  // Initialize with debug mode enabled and URL query parameter syncing
   // Change debug to false to hide the parsed query display
-  initTableQL('#search', '#mytable', { debug: true });
+  // storeQueryString: 'q' enables URL sharing (e.g., example.html?q=city:Berlin)
+  initTableQL('#search', '#mytable', { debug: true, storeQueryString: 'q' });
 </script>
 </body>
 </html>
