@@ -7,6 +7,11 @@ Evaluation model:
 - Boolean expression
 - Disjunctive Normal Form (DNF):  `OR` separates groups, `AND` is implicit within each group
 
+## Example
+
+Visit [hoffmann.github.io/tableql/](https://hoffmann.github.io/tableql/example.html) for an
+interactive demo to query a html table with TableQL.
+
 ## Data Model
 While the target data model is a html table, the core query engine works on a list of objects,
 where the objects have field names and values that are typed.
