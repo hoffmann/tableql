@@ -425,12 +425,25 @@ example.html?q=city:Berlin%20OR%20city:Munich
 example.html?q=active%20ORDER%20BY%20name%20ASC
 ```
 
+#### Custom Placeholder
+
+Customize the search input placeholder text:
+
+```javascript
+initTableQL('#search', '#mytable', {
+  placeholder: 'Filter products... (e.g., price >= 100, category:electronics)'
+});
+```
+
+If not specified, the default placeholder is: `'Search... (e.g., age >= 30, city:Berlin)'`
+
 #### Complete Example
 
 ```javascript
 initTableQL('#search', '#mytable', {
-  debug: true,           // Show parsed query
-  storeQueryString: 'q'  // Enable URL syncing
+  debug: true,                 // Show parsed query
+  storeQueryString: 'q',       // Enable URL syncing
+  placeholder: 'Filter data...' // Custom placeholder text
 });
 ```
 

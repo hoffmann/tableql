@@ -498,7 +498,7 @@ export function deferTypes(tableLike){
   return types;
 }
 
-export function initTableQL(searchSelector, tableSelector, { debug = false, storeQueryString = null } = {}) {
+export function initTableQL(searchSelector, tableSelector, { debug = false, storeQueryString = null, placeholder = 'Search... (e.g., age >= 30, city:Berlin)' } = {}) {
   const searchContainer = document.querySelector(searchSelector);
   const table = document.querySelector(tableSelector);
 
@@ -516,7 +516,7 @@ export function initTableQL(searchSelector, tableSelector, { debug = false, stor
   const input = document.createElement('input');
   input.type = 'text';
   input.className = 'tableql-search';
-  input.placeholder = 'Search... (e.g., age >= 30, city:Berlin)';
+  input.placeholder = placeholder;
   searchContainer.appendChild(input);
 
   // Initialize from URL query parameter if specified
