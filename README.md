@@ -470,6 +470,38 @@ Make sure your HTML table has `data-type` attributes on header cells to specify 
 
 If no `data-type` attribute is present, the field will default to `string`.
 
+#### Field Names
+
+By default, the field name used in queries is the lowercase version of the header text. For example, `<th>Name</th>` becomes the field name `name`.
+
+You can override this behavior using the `data-field` attribute to specify a custom field name without whitespaces:
+
+```html
+<table id="mytable">
+  <thead>
+    <tr>
+      <th data-field="first_name" data-type="string">First Name</th>
+      <th data-field="signup_date" data-type="date">Signup Date</th>
+    </tr>
+  </thead>
+  <tbody>
+    <!-- ... -->
+  </tbody>
+</table>
+```
+
+With the above structure, you would write queries like:
+```
+you_follow = true
+first_name:John
+signup_date >= 2025-01-01
+```
+
+This is especially useful when:
+- Column headers contain spaces or special characters
+- You want consistent field names across different views
+- You need field names that match your backend API naming conventions
+
 ## Parsed Query Representation (DNF)
 
 The query parser produces an intermediate representation in Disjunctive Normal Form (DNF), represented as JSON.

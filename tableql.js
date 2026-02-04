@@ -452,7 +452,8 @@ export function parseTable(tableLike) {
   const headerCells = table.querySelectorAll('thead th');
 
   headerCells.forEach(th => {
-    headers.push(th.textContent.trim().toLowerCase());
+    const fieldName = th.getAttribute('data-field') || th.textContent.trim().toLowerCase();
+    headers.push(fieldName);
   });
 
   const rows = [];
@@ -485,7 +486,7 @@ export function deferTypes(tableLike){
   const headerCells = table.querySelectorAll('thead th');
 
   headerCells.forEach(th => {
-    const fieldName = th.textContent.trim().toLowerCase();
+    const fieldName = th.getAttribute('data-field') || th.textContent.trim().toLowerCase();
     const dataType = th.getAttribute('data-type');
 
     if (dataType) {
