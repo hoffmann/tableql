@@ -499,6 +499,54 @@ export function deferTypes(tableLike){
   return types;
 }
 
+// Parse header cells into column descriptors: the resolved field name, the
+// visible column header text, and the declared type (defaults to "string").
+export function parseColumns(tableLike) {
+  const table = typeof tableLike === 'string'
+    ? document.querySelector(tableLike)
+    : tableLike;
+
+  if (!table) return [];
+
+  const columns = [];
+  const headerCells = table.querySelectorAll('thead th');
+
+  headerCells.forEach(th => {
+    const column = th.textContent.trim();
+    const field = th.getAttribute('data-field') || column.toLowerCase();
+    const type = th.getAttribute('data-type') || 'string';
+    columns.push({ field, column, type });
+  });
+
+  return columns;
+}
+
+// Build a schema description for each column: how the field name maps to the
+// column header text, its type, and the distinct values found in the rows.
+// Pure and DOM-free so it can be tested in isolation. Null/undefined values
+// are skipped; remaining distinct values keep their first-seen order.
+export function describeSchema(columns, rows) {
+  return columns.map(({ field, column, type }) => {
+    const values = [];
+    const seen = new Set();
+
+    for (const row of rows) {
+      const value = row[field];
+      if (value === null || value === undefined) {
+        continue;
+      }
+      const key = String(value);
+      if (seen.has(key)) {
+        continue;
+      }
+      seen.add(key);
+      values.push(value);
+    }
+
+    return { field, column, type, values };
+  });
+}
+
 export function initTableQL(searchSelector, tableSelector, { debug = false, storeQueryString = null, placeholder = 'Search... (e.g., age >= 30, city:Berlin)' } = {}) {
   const searchContainer = document.querySelector(searchSelector);
   const table = document.querySelector(tableSelector);
@@ -511,6 +559,7 @@ export function initTableQL(searchSelector, tableSelector, { debug = false, stor
   // Parse table data and types
   const rows = parseTable(table);
   const datatypes = deferTypes(table);
+  const columns = parseColumns(table);
   const tableRows = table.querySelectorAll('tbody tr');
 
   // Create search input
@@ -519,6 +568,101 @@ export function initTableQL(searchSelector, tableSelector, { debug = false, stor
   input.className = 'tableql-search';
   input.placeholder = placeholder;
   searchContainer.appendChild(input);
+
+  // Build the field-reference modal (shown when "?" is typed in the search box)
+  const modalOverlay = document.createElement('div');
+  modalOverlay.className = 'tableql-modal-overlay';
+  modalOverlay.style.display = 'none';
+
+  const modal = document.createElement('div');
+  modal.className = 'tableql-modal';
+  modalOverlay.appendChild(modal);
+  document.body.appendChild(modalOverlay);
+
+  function closeModal() {
+    modalOverlay.style.display = 'none';
+  }
+
+  function renderSchema() {
+    modal.innerHTML = '';
+
+    const header = document.createElement('div');
+    header.className = 'tableql-modal-header';
+
+    const heading = document.createElement('h2');
+    heading.textContent = 'Field Reference';
+    header.appendChild(heading);
+
+    const closeButton = document.createElement('button');
+    closeButton.type = 'button';
+    closeButton.className = 'tableql-modal-close';
+    closeButton.textContent = '×';
+    closeButton.setAttribute('aria-label', 'Close');
+    closeButton.addEventListener('click', closeModal);
+    header.appendChild(closeButton);
+
+    modal.appendChild(header);
+
+    const schemaTable = document.createElement('table');
+    schemaTable.className = 'tableql-schema-table';
+
+    const thead = document.createElement('thead');
+    const headRow = document.createElement('tr');
+    ['Field', 'Column', 'Type', 'Values'].forEach(label => {
+      const th = document.createElement('th');
+      th.textContent = label;
+      headRow.appendChild(th);
+    });
+    thead.appendChild(headRow);
+    schemaTable.appendChild(thead);
+
+    const tbody = document.createElement('tbody');
+    const schema = describeSchema(columns, rows);
+
+    for (const { field, column, type, values } of schema) {
+      const tr = document.createElement('tr');
+
+      const fieldCell = document.createElement('td');
+      const code = document.createElement('code');
+      code.textContent = field;
+      fieldCell.appendChild(code);
+      tr.appendChild(fieldCell);
+
+      const columnCell = document.createElement('td');
+      columnCell.textContent = column;
+      tr.appendChild(columnCell);
+
+      const typeCell = document.createElement('td');
+      typeCell.textContent = type;
+      tr.appendChild(typeCell);
+
+      const valuesCell = document.createElement('td');
+      const shown = values.slice(0, 10).map(v => String(v));
+      valuesCell.textContent = shown.join(', ') + (values.length > 10 ? ', …' : '');
+      tr.appendChild(valuesCell);
+
+      tbody.appendChild(tr);
+    }
+
+    schemaTable.appendChild(tbody);
+    modal.appendChild(schemaTable);
+  }
+
+  function openModal() {
+    renderSchema();
+    modalOverlay.style.display = 'flex';
+  }
+
+  modalOverlay.addEventListener('click', (e) => {
+    if (e.target === modalOverlay) {
+      closeModal();
+    }
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      closeModal();
+    }
+  });
 
   // Initialize from URL query parameter if specified
   if (storeQueryString) {
@@ -539,7 +683,13 @@ export function initTableQL(searchSelector, tableSelector, { debug = false, stor
 
   // Filter function
   function applyFilter(updateUrl = true) {
-    const query = input.value.trim();
+    let query = input.value.trim();
+
+    // Typing "?" opens the field-reference modal; treat it as an empty filter
+    if (query === '?') {
+      openModal();
+      query = '';
+    }
 
     // Update URL query parameter if storeQueryString is set
     if (storeQueryString && updateUrl) {

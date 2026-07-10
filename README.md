@@ -437,6 +437,33 @@ initTableQL('#search', '#mytable', {
 
 If not specified, the default placeholder is: `'Search... (e.g., age >= 30, city:Berlin)'`
 
+### Field Reference Modal
+
+Typing **`?`** into the search box opens a modal listing every queryable field, so
+users can discover what they can search on without reading the source. The `?` is
+treated as an empty filter (all rows stay visible) while the reference is shown.
+For each column the modal shows:
+
+| Column  | Meaning                                                              |
+| ------- | ------------------------------------------------------------------- |
+| Field   | The field name used in queries (from `data-field`, or the lowercased header text) |
+| Column  | The visible column header text as shown in the table                |
+| Type    | The declared `data-type` (defaults to `string`)                     |
+| Values  | The distinct values present in that column (first-seen order, up to 10, then `…`) |
+
+This makes the mapping between a `data-field` and its `<th>` column explicit —
+for example a `<th data-field="signup_date">Signup Date</th>` appears as field
+`signup_date` mapped to column `Signup Date`.
+
+The modal can be closed by clicking the `×`, clicking outside the modal, or
+pressing `Escape`. No configuration is required; it is always available by typing `?`.
+
+The underlying data is produced by the pure, DOM-free `describeSchema(columns, rows)`
+function, which is exported for testing and custom UIs. `columns` is an array of
+`{ field, column, type }` descriptors (as returned by the exported
+`parseColumns(table)`), and it returns the same objects extended with a `values`
+array of distinct, non-null values in first-seen order.
+
 #### Complete Example
 
 ```javascript

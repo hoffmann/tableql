@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { filterIds } from "./tableql.js";
+import { filterIds, describeSchema } from "./tableql.js";
 
 const datatypes = {
   id: "number",
@@ -292,6 +292,44 @@ test("Complex query with ORDER BY", () => {
 test("ORDER BY with name field", () => {
   const result = filterIds(rows, "active = true ORDER BY name ASC", { datatypes });
   assert.deepEqual(result, [1, 2, 4], "should order active users by name");
+});
+
+// describeSchema tests (powers the "?" field-reference modal)
+test("describeSchema maps field, column header, type, and distinct values", () => {
+  const columns = [
+    { field: "id", column: "ID", type: "number" },
+    { field: "city", column: "City", type: "string" },
+  ];
+  const rowsData = [
+    { id: 1, city: "Berlin" },
+    { id: 2, city: "Munich" },
+    { id: 3, city: "Berlin" },
+  ];
+  assert.deepEqual(describeSchema(columns, rowsData), [
+    { field: "id", column: "ID", type: "number", values: [1, 2, 3] },
+    { field: "city", column: "City", type: "string", values: ["Berlin", "Munich"] },
+  ]);
+});
+
+test("describeSchema keeps first-seen order and skips null/undefined values", () => {
+  const columns = [{ field: "note", column: "Note", type: "string" }];
+  const rowsData = [
+    { id: 1, note: "b" },
+    { id: 2, note: null },
+    { id: 3, note: "a" },
+    { id: 4 },          // note undefined
+    { id: 5, note: "b" },
+  ];
+  assert.deepEqual(describeSchema(columns, rowsData), [
+    { field: "note", column: "Note", type: "string", values: ["b", "a"] },
+  ]);
+});
+
+test("describeSchema returns empty values for an empty row set", () => {
+  const columns = [{ field: "id", column: "ID", type: "number" }];
+  assert.deepEqual(describeSchema(columns, []), [
+    { field: "id", column: "ID", type: "number", values: [] },
+  ]);
 });
 
 // Boolean field shorthand tests
