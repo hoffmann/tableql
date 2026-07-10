@@ -547,6 +547,99 @@ export function describeSchema(columns, rows) {
   });
 }
 
+// Styles for the field-reference modal. Injected once from JavaScript so the
+// modal is self-contained and callers don't need to add any CSS.
+const MODAL_STYLES = `
+.tableql-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 1000;
+}
+
+.tableql-modal {
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  max-width: 700px;
+  width: 100%;
+  max-height: 80vh;
+  overflow: auto;
+  padding: 20px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+.tableql-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 15px;
+}
+
+.tableql-modal-header h2 {
+  margin: 0;
+  font-size: 18px;
+  color: #333;
+}
+
+.tableql-modal-close {
+  border: none;
+  background: none;
+  font-size: 24px;
+  line-height: 1;
+  color: #888;
+  cursor: pointer;
+}
+
+.tableql-modal-close:hover {
+  color: #333;
+}
+
+.tableql-schema-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.tableql-schema-table th,
+.tableql-schema-table td {
+  text-align: left;
+  padding: 8px 10px;
+  border-bottom: 1px solid #eee;
+  vertical-align: top;
+}
+
+.tableql-schema-table th {
+  color: #4a90e2;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.tableql-schema-table code {
+  background-color: #f8f8f8;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-family: 'Courier New', monospace;
+}
+`;
+
+// Inject the modal styles into <head> exactly once per document.
+function injectModalStyles() {
+  const id = 'tableql-modal-styles';
+  if (document.getElementById(id)) {
+    return;
+  }
+  const style = document.createElement('style');
+  style.id = id;
+  style.textContent = MODAL_STYLES;
+  document.head.appendChild(style);
+}
+
 export function initTableQL(searchSelector, tableSelector, { debug = false, storeQueryString = null, placeholder = 'Search... (e.g., age >= 30, city:Berlin)' } = {}) {
   const searchContainer = document.querySelector(searchSelector);
   const table = document.querySelector(tableSelector);
@@ -570,6 +663,7 @@ export function initTableQL(searchSelector, tableSelector, { debug = false, stor
   searchContainer.appendChild(input);
 
   // Build the field-reference modal (shown when "?" is typed in the search box)
+  injectModalStyles();
   const modalOverlay = document.createElement('div');
   modalOverlay.className = 'tableql-modal-overlay';
   modalOverlay.style.display = 'none';

@@ -457,6 +457,8 @@ for example a `<th data-field="signup_date">Signup Date</th>` appears as field
 
 The modal can be closed by clicking the `×`, clicking outside the modal, or
 pressing `Escape`. No configuration is required; it is always available by typing `?`.
+Its styles are injected automatically from `tableql.js`, so no CSS needs to be
+added to the host page.
 
 The underlying data is produced by the pure, DOM-free `describeSchema(columns, rows)`
 function, which is exported for testing and custom UIs. `columns` is an array of
