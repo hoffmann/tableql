@@ -441,6 +441,13 @@ export function filterIds(rows, expr, { idKey = "id", datatypes = null } = {}) {
   return filteredRows.map(row => row[idKey]);
 }
 
+// Resolve a cell's value for querying: an explicit data-value attribute wins
+// (even if an empty string); otherwise fall back to the cell's trimmed text.
+// Pure and DOM-free so it can be tested in isolation.
+export function resolveCellValue(dataValue, text) {
+  return dataValue !== null && dataValue !== undefined ? dataValue : text.trim();
+}
+
 export function parseTable(tableLike) {
   const table = typeof tableLike === 'string'
     ? document.querySelector(tableLike)
@@ -465,7 +472,7 @@ export function parseTable(tableLike) {
 
     cells.forEach((td, colIndex) => {
       if (colIndex < headers.length) {
-        row[headers[colIndex]] = td.textContent.trim();
+        row[headers[colIndex]] = resolveCellValue(td.getAttribute('data-value'), td.textContent);
       }
     });
 
@@ -731,8 +738,8 @@ export function initTableQL(searchSelector, tableSelector, { debug = false, stor
       tr.appendChild(typeCell);
 
       const valuesCell = document.createElement('td');
-      const shown = values.slice(0, 10).map(v => String(v));
-      valuesCell.textContent = shown.join(', ') + (values.length > 10 ? ', …' : '');
+      const shown = values.slice(0, 3).map(v => String(v));
+      valuesCell.textContent = shown.join(', ') + (values.length > 3 ? ', …' : '');
       tr.appendChild(valuesCell);
 
       tbody.appendChild(tr);

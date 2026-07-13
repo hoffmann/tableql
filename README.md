@@ -449,7 +449,7 @@ For each column the modal shows:
 | Field   | The field name used in queries (from `data-field`, or the lowercased header text) |
 | Column  | The visible column header text as shown in the table                |
 | Type    | The declared `data-type` (defaults to `string`)                     |
-| Values  | The distinct values present in that column (first-seen order, up to 10, then `…`) |
+| Values  | The distinct values present in that column (first-seen order, up to 3, then `…`) |
 
 This makes the mapping between a `data-field` and its `<th>` column explicit —
 for example a `<th data-field="signup_date">Signup Date</th>` appears as field
@@ -530,6 +530,46 @@ This is especially useful when:
 - Column headers contain spaces or special characters
 - You want consistent field names across different views
 - You need field names that match your backend API naming conventions
+
+#### Raw Values (display vs. filtering)
+
+Sometimes a cell renders a *display* representation that differs from the value
+you want to filter on — an emoji instead of `true`/`false`, or a progress bar
+instead of a percentage number. Add a `data-value` attribute to the `<td>` and
+TableQL uses it for all query evaluation (filtering, `ORDER BY`, free-text
+search, and the `?` field-reference modal) while the cell keeps showing its nice
+representation.
+
+```html
+<table id="mytable">
+  <thead>
+    <tr>
+      <th data-type="boolean">active</th>
+      <th data-type="number">progress</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td data-value="true">✅</td>
+      <td data-value="0.87"><div class="bar" style="width:87%"></div></td>
+    </tr>
+    <tr>
+      <td data-value="false">❌</td>
+      <td data-value="0.42"><div class="bar" style="width:42%"></div></td>
+    </tr>
+  </tbody>
+</table>
+```
+
+With the above, `active = false` matches the ❌ row and `progress >= 0.8`
+matches the first row, even though the cells display an emoji and a bar.
+
+Behavior:
+- When `data-value` is present, its value is used **verbatim** (not trimmed).
+- An empty `data-value=""` is honored as an explicit empty value (useful with
+  `is empty`).
+- When `data-value` is absent, the cell's trimmed text content is used, exactly
+  as before.
 
 ## Parsed Query Representation (DNF)
 

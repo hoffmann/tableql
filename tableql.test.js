@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { filterIds, describeSchema } from "./tableql.js";
+import { filterIds, describeSchema, resolveCellValue } from "./tableql.js";
 
 const datatypes = {
   id: "number",
@@ -293,6 +293,23 @@ test("ORDER BY with name field", () => {
   const result = filterIds(rows, "active = true ORDER BY name ASC", { datatypes });
   assert.deepEqual(result, [1, 2, 4], "should order active users by name");
 });
+
+// resolveCellValue tests (raw data-value overrides displayed cell text)
+const cellValueCases = [
+  { dataValue: "true", text: "✅", expected: "true", desc: "data-value overrides emoji display" },
+  { dataValue: "0.87", text: "▇▇▇", expected: "0.87", desc: "data-value overrides bar display" },
+  { dataValue: "", text: "✅", expected: "", desc: "empty data-value is honored" },
+  { dataValue: null, text: "Berlin", expected: "Berlin", desc: "absent attribute falls back to text" },
+  { dataValue: undefined, text: "Munich", expected: "Munich", desc: "undefined attribute falls back to text" },
+  { dataValue: null, text: "  Berlin  ", expected: "Berlin", desc: "fallback text is trimmed" },
+  { dataValue: " raw ", text: "x", expected: " raw ", desc: "data-value is used verbatim (not trimmed)" },
+];
+
+for (const { dataValue, text, expected, desc } of cellValueCases) {
+  test(`resolveCellValue: ${desc}`, () => {
+    assert.equal(resolveCellValue(dataValue, text), expected);
+  });
+}
 
 // describeSchema tests (powers the "?" field-reference modal)
 test("describeSchema maps field, column header, type, and distinct values", () => {
