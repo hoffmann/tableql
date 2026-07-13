@@ -499,6 +499,47 @@ Make sure your HTML table has `data-type` attributes on header cells to specify 
 
 If no `data-type` attribute is present, the field will default to `string`.
 
+#### The `id` Column (required)
+
+> **Implementation hint:** `initTableQL()` identifies each row by an `id` field
+> and uses it to show, hide, and reorder the matching `<tr>` elements. Every row
+> **must** therefore have a column whose field name is `id` (from the header text
+> `id`, or `data-field="id"`) with a **unique** value per row. Rows without a
+> usable `id` cannot be reliably filtered or sorted.
+
+If your data has no natural identifier, add a **hidden `id` column** whose sole
+purpose is to give each row a stable, unique key. Hide it with CSS so it never
+shows to users, but keep it in the DOM so the library can read it:
+
+```html
+<table id="mytable">
+  <thead>
+    <tr>
+      <th data-field="id" style="display:none">id</th>
+      <th data-type="string">name</th>
+      <th data-type="number">age</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="display:none">1</td>
+      <td>Alice</td>
+      <td>30</td>
+    </tr>
+    <tr>
+      <td style="display:none">2</td>
+      <td>Bob</td>
+      <td>22</td>
+    </tr>
+  </tbody>
+</table>
+```
+
+The values just need to be unique — a simple 1-based counter works fine, or any
+existing key from your backend. Because the column is hidden, its values are
+never displayed but are still available for identifying rows (and for querying,
+e.g. `id = 2`, should you want it).
+
 #### Field Names
 
 By default, the field name used in queries is the lowercase version of the header text. For example, `<th>Name</th>` becomes the field name `name`.

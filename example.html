@@ -175,6 +175,9 @@
 
 <!--
   Table structure notes:
+  - An "id" column with a unique value per row is REQUIRED: initTableQL uses it
+    to show/hide/reorder rows. If your data has no natural id, add a hidden one
+    (e.g. <th data-field="id" style="display:none">id</th> + hidden <td>s).
   - Use data-type to specify field types: "number", "string", "date", "boolean"
   - Without data-field, field names are derived from lowercase header text
   - Use data-value on a <td> to filter on a raw value while the cell shows a
