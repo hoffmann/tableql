@@ -169,7 +169,7 @@
 </head>
 <body>
 <h1>TableQL Demo</h1>
-<div class="subtitle">Filter table rows using JQL-inspired query language. Type <strong>?</strong> in the search box to see all fields, their column headers, types, and values.</div>
+<div class="subtitle">Filter table rows using JQL-inspired query language. Type <strong>?</strong> in the search box to see all fields, their column headers, types, and values. <strong>Click a column header</strong> to sort (descending → ascending → off).</div>
 <div id="search">
 </div>
 
@@ -186,13 +186,13 @@
 <table id="mytable">
   <thead>
     <tr>
-      <th data-type="number">id</th>
-      <th data-type="string">name</th>
-      <th data-type="number">age</th>
-      <th data-type="string">city</th>
-      <th data-type="date">created</th>
-      <th data-type="boolean">active</th>
-      <th data-type="number">progress</th>
+      <th data-type="number" data-field="id" class="sortable"><span>id</span><span class="sort-arrow"></span></th>
+      <th data-type="string" data-field="name" class="sortable"><span>name</span><span class="sort-arrow"></span></th>
+      <th data-type="number" data-field="age" class="sortable"><span>age</span><span class="sort-arrow"></span></th>
+      <th data-type="string" data-field="city" class="sortable"><span>city</span><span class="sort-arrow"></span></th>
+      <th data-type="date" data-field="created" class="sortable"><span>created</span><span class="sort-arrow"></span></th>
+      <th data-type="boolean" data-field="active" class="sortable"><span>active</span><span class="sort-arrow"></span></th>
+      <th data-type="number" data-field="progress" class="sortable"><span>progress</span><span class="sort-arrow"></span></th>
     </tr>
   </thead>
   <tbody>
@@ -271,7 +271,8 @@
   //   debug: true/false - Show parsed query structure
   //   storeQueryString: 'q' - Enable URL sharing (e.g., example.html?q=city:Berlin)
   //   placeholder: 'Custom text...' - Custom search input placeholder
-  initTableQL('#search', '#mytable', { debug: true, storeQueryString: 'q'});
+  //   sortableHeaders: true - Click a <th class="sortable"> to sort via ORDER BY
+  initTableQL('#search', '#mytable', { debug: true, storeQueryString: 'q', sortableHeaders: true });
 </script>
 </body>
 </html>

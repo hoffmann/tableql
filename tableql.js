@@ -441,6 +441,28 @@ export function filterIds(rows, expr, { idKey = "id", datatypes = null } = {}) {
   return filteredRows.map(row => row[idKey]);
 }
 
+// Read the ORDER BY clause from a query string as { field, direction } (the
+// direction is upper-cased ASC/DESC), or null if there is none. Pure/DOM-free.
+export function getOrderBy(expr) {
+  return parse(tokenize(expr || "")).orderBy;
+}
+
+// Remove a trailing ORDER BY clause from a raw query string, leaving the filter
+// part untouched (spacing/quoting preserved). Pure/DOM-free.
+export function stripOrderBy(expr) {
+  return String(expr || "").replace(/\s*\border\s+by\b.*$/i, "");
+}
+
+// Return `expr` with its ORDER BY clause set to `field` `direction`
+// (ASC/DESC). A falsy `direction` removes the ordering entirely. The filter
+// part of `expr` is preserved verbatim. Pure/DOM-free.
+export function setOrderBy(expr, field, direction) {
+  const filter = stripOrderBy(expr).trim();
+  if (!direction) return filter;
+  const clause = `ORDER BY ${field} ${String(direction).toUpperCase()}`;
+  return filter ? `${filter} ${clause}` : clause;
+}
+
 // Resolve a cell's value for querying: an explicit data-value attribute wins
 // (even if an empty string); otherwise fall back to the cell's trimmed text.
 // Pure and DOM-free so it can be tested in isolation.
@@ -647,7 +669,25 @@ function injectModalStyles() {
   document.head.appendChild(style);
 }
 
-export function initTableQL(searchSelector, tableSelector, { debug = false, storeQueryString = null, placeholder = 'Search... (e.g., age >= 30, city:Berlin)' } = {}) {
+// Styling for click-to-sort headers, injected once when sortableHeaders is on.
+const SORT_STYLES = `
+th.sortable { cursor: pointer; user-select: none; }
+th.sortable:hover { color: var(--accent); }
+th .sort-arrow { color: var(--accent); }
+`;
+
+function injectSortStyles() {
+  const id = 'tableql-sort-styles';
+  if (document.getElementById(id)) {
+    return;
+  }
+  const style = document.createElement('style');
+  style.id = id;
+  style.textContent = SORT_STYLES;
+  document.head.appendChild(style);
+}
+
+export function initTableQL(searchSelector, tableSelector, { debug = false, storeQueryString = null, placeholder = 'Search... (e.g., age >= 30, city:Berlin)', onChange = null, sortableHeaders = false } = {}) {
   const searchContainer = document.querySelector(searchSelector);
   const table = document.querySelector(tableSelector);
 
@@ -774,6 +814,42 @@ export function initTableQL(searchSelector, tableSelector, { debug = false, stor
     }
   }
 
+  // Click-to-sort headers: each <th class="sortable" data-field="…"> cycles its
+  // column off/other → DESC → ASC → off, expressed entirely through the query's
+  // ORDER BY clause so filtering and sorting share one source of truth. Arrows
+  // (a <span class="sort-arrow">) are re-rendered on every query change — clicks,
+  // manual "ORDER BY …" typing, and back/forward navigation alike.
+  const sortHeaders = sortableHeaders ? table.querySelectorAll('th.sortable') : [];
+  if (sortableHeaders && sortHeaders.length) {
+    injectSortStyles();
+    sortHeaders.forEach(th => {
+      th.addEventListener('click', () => {
+        const field = th.getAttribute('data-field');
+        const ob = getOrderBy(input.value);
+        let direction;
+        if (!ob || ob.field !== field) {
+          direction = 'DESC';
+        } else if (ob.direction === 'DESC') {
+          direction = 'ASC';
+        } else {
+          direction = null;
+        }
+        input.value = setOrderBy(input.value, field, direction);
+        applyFilter();
+      });
+    });
+  }
+
+  function renderSortArrows(query) {
+    const ob = getOrderBy(query);
+    sortHeaders.forEach(th => {
+      const arrow = th.querySelector('.sort-arrow');
+      if (!arrow) return;
+      const active = ob && ob.field === th.getAttribute('data-field');
+      arrow.textContent = active ? (ob.direction === 'DESC' ? ' ▼' : ' ▲') : '';
+    });
+  }
+
   // Create debug output container if needed
   let debugContainer;
   if (debug) {
@@ -801,6 +877,13 @@ export function initTableQL(searchSelector, tableSelector, { debug = false, stor
         url.searchParams.delete(storeQueryString);
       }
       window.history.pushState({}, '', url);
+    }
+
+    // Reflect the current query (typed, programmatic, or popstate): sort arrows
+    // on the headers, plus any caller-supplied listener.
+    renderSortArrows(query);
+    if (onChange) {
+      onChange(query);
     }
 
     if (debug && debugContainer) {
@@ -882,6 +965,11 @@ export function initTableQL(searchSelector, tableSelector, { debug = false, stor
 
   return {
     input,
+    getQuery: () => input.value,
+    setQuery: (query) => {
+      input.value = query;
+      applyFilter();
+    },
     clear: () => {
       input.value = '';
       applyFilter();

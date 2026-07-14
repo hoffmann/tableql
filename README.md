@@ -437,6 +437,59 @@ initTableQL('#search', '#mytable', {
 
 If not specified, the default placeholder is: `'Search... (e.g., age >= 30, city:Berlin)'`
 
+#### Clickable Column Sorting
+
+Turn table headers into click-to-sort controls, driven entirely through the
+query's `ORDER BY` clause:
+
+```javascript
+initTableQL('#search', '#mytable', { sortableHeaders: true });
+```
+
+Mark each sortable header with `class="sortable"`, a `data-field`, and an empty
+`<span class="sort-arrow"></span>` that holds the direction indicator:
+
+```html
+<th data-type="number" data-field="age" class="sortable"><span>Age</span><span class="sort-arrow"></span></th>
+```
+
+Clicking a header cycles that column: **off → descending (▼) → ascending (▲) →
+off**, rewriting the `ORDER BY` clause at the end of the query (clicking a
+different column replaces it). Because sorting and filtering share the same query
+string:
+
+- filtering and sorting compose (the click just appends/updates `ORDER BY`);
+- the sort is captured in the URL when `storeQueryString` is enabled, so sorted
+  views are shareable;
+- the arrow indicators stay in sync when the user types an `ORDER BY` clause by
+  hand, and across browser back/forward navigation.
+
+The header styles (`cursor`, hover, arrow color) are injected automatically from
+`tableql.js`, so no CSS needs to be added to the host page.
+
+The behavior is built on three exported, pure (DOM-free) helpers you can reuse to
+build custom sort UIs:
+
+| Function | Description |
+| --- | --- |
+| `getOrderBy(query)` | Returns `{ field, direction }` (direction upper-cased `ASC`/`DESC`) or `null`. |
+| `setOrderBy(query, field, direction)` | Returns `query` with its `ORDER BY` set; a falsy `direction` removes ordering. The filter part is preserved verbatim. |
+| `stripOrderBy(query)` | Returns `query` with a trailing `ORDER BY` clause removed. |
+
+`initTableQL(...)` returns `{ input, getQuery(), setQuery(query), clear() }` —
+`getQuery`/`setQuery` let external controls read and drive the same query string.
+
+#### Change Callback
+
+Pass an `onChange` callback to react to every query change — typing, header
+clicks, `setQuery(...)`, and back/forward navigation all trigger it:
+
+```javascript
+initTableQL('#search', '#mytable', {
+  onChange: (query) => console.log('query is now:', query),
+});
+```
+
 ### Field Reference Modal
 
 Typing **`?`** into the search box opens a modal listing every queryable field, so

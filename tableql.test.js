@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { filterIds, describeSchema, resolveCellValue } from "./tableql.js";
+import { filterIds, describeSchema, resolveCellValue, getOrderBy, setOrderBy, stripOrderBy } from "./tableql.js";
 
 const datatypes = {
   id: "number",
@@ -347,6 +347,48 @@ test("describeSchema returns empty values for an empty row set", () => {
   assert.deepEqual(describeSchema(columns, []), [
     { field: "id", column: "ID", type: "number", values: [] },
   ]);
+});
+
+// ORDER BY clause helpers (power clickable column sorting and custom sort UIs)
+test("getOrderBy: none returns null", () => {
+  assert.equal(getOrderBy("age >= 30"), null);
+});
+
+test("getOrderBy: reads field and direction", () => {
+  assert.deepEqual(getOrderBy("ORDER BY age DESC"), { field: "age", direction: "DESC" });
+});
+
+test("getOrderBy: defaults to ASC when no direction given", () => {
+  assert.deepEqual(getOrderBy("city:Berlin ORDER BY age"), { field: "age", direction: "ASC" });
+});
+
+test("getOrderBy: keyword is case-insensitive", () => {
+  assert.deepEqual(getOrderBy("order by name desc"), { field: "name", direction: "DESC" });
+});
+
+test("stripOrderBy: removes the clause, keeps the filter verbatim", () => {
+  assert.equal(stripOrderBy("city:Berlin ORDER BY age DESC"), "city:Berlin");
+});
+
+test("stripOrderBy: no clause is left untouched", () => {
+  assert.equal(stripOrderBy("city:Berlin"), "city:Berlin");
+});
+
+test("stripOrderBy: does not eat a field/value containing 'order'", () => {
+  assert.equal(stripOrderBy("status:ordered"), "status:ordered");
+});
+
+test("setOrderBy: sets, flips, and removes the clause", () => {
+  assert.equal(setOrderBy("", "age", "DESC"), "ORDER BY age DESC");
+  assert.equal(setOrderBy("ORDER BY age DESC", "age", "ASC"), "ORDER BY age ASC");
+  assert.equal(setOrderBy("ORDER BY age ASC", "age", null), "");
+});
+
+test("setOrderBy: preserves the filter part when replacing the clause", () => {
+  assert.equal(
+    setOrderBy("city:Berlin ORDER BY name ASC", "age", "DESC"),
+    "city:Berlin ORDER BY age DESC",
+  );
 });
 
 // Boolean field shorthand tests
